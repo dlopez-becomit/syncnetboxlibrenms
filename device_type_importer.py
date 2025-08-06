@@ -74,6 +74,7 @@ def import_device_type_if_exists(vendor: str, fname: str):
 
     # Busca ruta exacta o sugiere alternativas
     relpath, suggestions = find_in_tree(vendor, slug_key)
+    suggestions = suggestions[:4]
     print(f"[DEBUG] find_in_tree -> relpath={relpath}, suggestions={suggestions[:3]} (total {len(suggestions)})")
 
     if not relpath:
