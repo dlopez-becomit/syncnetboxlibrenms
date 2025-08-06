@@ -3,30 +3,11 @@ import os
 import yaml
 import requests
 
-# Variables globales que deben estar definidas en tu aplicación
-TREE = None  # Debe ser inicializada con los datos del árbol de dispositivos
-DRY = False  # Modo dry-run, cambiar a True para no hacer cambios reales
+from api_netbox import nb_get, nb_post, get_or_create_manufacturer_id
+from device_utils import find_in_tree, TREE
+from config import DRY_RUN
 
-# Funciones que deben estar implementadas en tu aplicación
-def nb_get(endpoint: str, **params):
-    """Función para hacer GET a la API de NetBox"""
-    # Implementar según tu configuración de NetBox
-    pass
-
-def nb_post(endpoint: str, data: dict):
-    """Función para hacer POST a la API de NetBox"""
-    # Implementar según tu configuración de NetBox
-    pass
-
-def get_or_create_manufacturer_id(vendor_name: str):
-    """Obtiene o crea un manufacturer en NetBox y retorna su ID"""
-    # Implementar según tu lógica
-    pass
-
-def find_in_tree(vendor: str, model: str):
-    """Busca en el árbol de dispositivos y retorna (ruta, sugerencias)"""
-    # Implementar según tu lógica de búsqueda
-    return None, []
+DRY = DRY_RUN
 
 def create_generic_device_type():
     """Crea un device-type genérico si no existe"""
