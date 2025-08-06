@@ -43,29 +43,28 @@ def find_in_tree(vendor: str, slug: str) -> tuple[str | None, list[str]]:
     if exact in TREE:
         return exact, []
 
-    # Buscar coincidencias aproximadas dentro del vendor
+    # Buscar coincidencias dentro del vendor y complementarlas con coincidencias globales
     prefix = f"{vendor}/"
     vendor_paths = [p for p in TREE if p.startswith(prefix)]
-    vendor_names = [os.path.basename(p)[:-5] for p in vendor_paths]
-    matches = difflib.get_close_matches(slug, vendor_names, n=4, cutoff=0.5)
-    if matches:
-        suggestions = []
-        for m in matches:
-            for p in vendor_paths:
-                if os.path.basename(p).startswith(m):
-                    suggestions.append(p)
-                    break
-        return None, suggestions
 
-    # Coincidencias globales si no se encontró nada en vendor
-    all_names = [os.path.basename(p)[:-5] for p in TREE]
-    matches = difflib.get_close_matches(slug, all_names, n=4, cutoff=0.5)
-    suggestions = []
-    for m in matches:
-        for p in TREE:
-            if os.path.basename(p).startswith(m):
+    def score(path: str) -> float:
+        name = os.path.basename(path)[:-5]
+        return difflib.SequenceMatcher(None, slug, name).ratio()
+
+    # Ordenar las coincidencias del vendor por score
+    ranked_vendor = sorted(vendor_paths, key=score, reverse=True)
+    suggestions: list[str] = [p for p in ranked_vendor if score(p) >= 0.3][:4]
+
+    # Si faltan sugerencias, completar con coincidencias globales
+    if len(suggestions) < 4:
+        remaining = [p for p in TREE if p not in suggestions]
+        ranked_global = sorted(remaining, key=score, reverse=True)
+        for p in ranked_global:
+            if p not in suggestions:
                 suggestions.append(p)
+            if len(suggestions) == 4:
                 break
+
     return None, suggestions
 
 def validate_device(d: dict) -> bool:
