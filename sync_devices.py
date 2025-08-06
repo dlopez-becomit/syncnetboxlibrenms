@@ -1,3 +1,5 @@
+from typing import Optional
+
 from api_librenms import get_librenms_devices
 from api_netbox import nb_get, nb_post
 from device_type_importer import import_device_type_if_exists
@@ -5,7 +7,7 @@ from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
 
 
-def get_platform_id(slug: str | None) -> int | None:
+def get_platform_id(slug: Optional[str]) -> Optional[int]:
     """Return NetBox platform ID for given slug if it exists."""
     if not slug:
         return None
@@ -13,6 +15,15 @@ def get_platform_id(slug: str | None) -> int | None:
     if resp.get("count"):
         return resp["results"][0]["id"]
     return None
+
+
+def get_ip_address_id(address: str) -> Optional[int]:
+    """Return NetBox IP address ID, creating the address if needed."""
+    resp = nb_get("ipam/ip-addresses/", address=address)
+    if resp.get("count"):
+        return resp["results"][0]["id"]
+    created = nb_post("ipam/ip-addresses/", {"address": address})
+    return created.get("id")
 
 def get_site_id(slug):
     resp = nb_get("dcim/sites/", slug=slug)
@@ -66,12 +77,15 @@ def sync_devices():
         if d.get("asset_tag"):
             pl["asset_tag"] = d["asset_tag"]
         if d.get("os"):
-            plat_id = get_platform_id(d.get("os"))
+            platform_slug = d["os"].strip().lower().replace(" ", "-")
+            plat_id = get_platform_id(platform_slug)
             if plat_id:
                 pl["platform"] = plat_id
         ip4 = d.get("ip") or d.get("ipv4") or d.get("ip4") or d.get("primary_ip")
         if ip4:
-            pl["primary_ip4"] = ip4
+            ip_id = get_ip_address_id(ip4)
+            if ip_id:
+                pl["primary_ip4"] = ip_id
         if d.get("notes"):
             pl["comments"] = d["notes"]
 
