@@ -30,6 +30,17 @@ def nb_post(endpoint, payload):
         raise
     return resp.json()
 
+
+def get_ip_address_id(address: str | None):
+    if not address:
+        return None
+    addr = address if "/" in address else f"{address}/32"
+    resp = nb_get("ipam/ip-addresses/", address=addr)
+    if resp.get("count"):
+        return resp["results"][0]["id"]
+    created = nb_post("ipam/ip-addresses/", {"address": addr, "status": "active"})
+    return created.get("id")
+
 def get_or_create_manufacturer_id(slug: str):
     slug = (slug or "").strip().lower()
     resp = nb_get("dcim/manufacturers/", slug=slug)
