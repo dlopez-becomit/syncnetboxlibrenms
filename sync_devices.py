@@ -1,5 +1,5 @@
 from api_librenms import get_librenms_devices, get_librenms_device_ports
-from api_netbox import nb_get, nb_post, get_ip_address_id
+from api_netbox import nb_get, nb_post
 from device_type_importer import import_device_type_if_exists
 from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
@@ -50,8 +50,6 @@ def sync_devices():
             continue
 
         platform_id = get_platform_id((d.get("os") or "").strip().lower())
-        primary_ip = d.get("ip")
-        ip_id = get_ip_address_id(primary_ip)
 
         cf = {"cf_librenms_id": lid}
         resp_dev = nb_get("dcim/devices/", **cf)
@@ -69,11 +67,6 @@ def sync_devices():
             }
             if platform_id:
                 pl["platform"] = platform_id
-            if ip_id:
-                if primary_ip and ":" in primary_ip:
-                    pl["primary_ip6"] = ip_id
-                else:
-                    pl["primary_ip4"] = ip_id
             created = nb_post("dcim/devices/", pl)
             nb_dev_id = created.get("id")
             print(f"+ Creado {nm} ({lid}) con device_type {dtid}")
