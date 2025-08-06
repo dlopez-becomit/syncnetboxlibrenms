@@ -30,6 +30,24 @@ def nb_post(endpoint, payload):
         raise
     return resp.json()
 
+
+def nb_patch(endpoint, payload):
+    if DRY_RUN:
+        print(f"[DRY_RUN] PATCH {endpoint} -> {payload}")
+        return {}
+    url = f"{NETBOX_URL}api/{endpoint}"
+    resp = requests.patch(url, json=payload, headers=HEADERS, timeout=60)
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError:
+        print("ERROR en nb_patch:")
+        print("Request:", url)
+        print("Payload:", payload)
+        print("Status:", resp.status_code)
+        print("Respuesta:", resp.text)
+        raise
+    return resp.json()
+
 def get_or_create_manufacturer_id(slug: str):
     slug = (slug or "").strip().lower()
     resp = nb_get("dcim/manufacturers/", slug=slug)
