@@ -2,6 +2,7 @@ import requests
 import yaml
 import os
 import re
+import ipaddress
 from config import NETBOX_URL, NETBOX_TOKEN, DRY_RUN
 from device_utils import find_in_tree, TREE, ensure_slug
 
@@ -34,7 +35,15 @@ def nb_post(endpoint, payload):
 def get_ip_address_id(address: str | None):
     if not address:
         return None
-    addr = address if "/" in address else f"{address}/32"
+    if "/" in address:
+        addr = address
+    else:
+        try:
+            ip_obj = ipaddress.ip_address(address)
+        except ValueError:
+            return None
+        suffix = "32" if ip_obj.version == 4 else "128"
+        addr = f"{address}/{suffix}"
     resp = nb_get("ipam/ip-addresses/", address=addr)
     if resp.get("count"):
         return resp["results"][0]["id"]
