@@ -19,6 +19,26 @@ def get_role_id(slug):
     raise ValueError(f"No existe el role: {slug}")
 
 
+def get_ip_address_id(address: str):
+    """Return the NetBox IP address ID, creating the IP if needed.
+
+    NetBox expects IP addresses in CIDR notation. When ``address`` does not
+    include a prefix, it is assumed to be a host address and ``/32`` is
+    appended before querying NetBox.
+    """
+
+    if "/" not in address:
+        address = f"{address}/32"
+
+    resp = nb_get("ipam/ip-addresses/", address=address)
+    if resp.get("count"):
+        return resp["results"][0]["id"]
+
+    payload = {"address": address}
+    created = nb_post("ipam/ip-addresses/", payload)
+    return created.get("id")
+
+
 def sync_devices():
     devices = get_librenms_devices()
     print(f"LibreNMS → {len(devices)} devices")
