@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import difflib
 from urllib.parse import quote
 
 # Suposición: nb_get y nb_post ya definidas, restituyen JSON/dict
@@ -42,18 +43,30 @@ def find_in_tree(vendor: str, slug: str) -> tuple[str | None, list[str]]:
     if exact in TREE:
         return exact, []
 
-    # Scoped fuzzy dentro de la carpeta del vendor
-    suggestions = []
+    # Buscar coincidencias aproximadas dentro del vendor
     prefix = f"{vendor}/"
-    for path in TREE:
-        if path.startswith(prefix) and slug in os.path.basename(path):
-            suggestions.append(path)
-    if suggestions:
+    vendor_paths = [p for p in TREE if p.startswith(prefix)]
+    vendor_names = [os.path.basename(p)[:-5] for p in vendor_paths]
+    matches = difflib.get_close_matches(slug, vendor_names, n=4, cutoff=0.5)
+    if matches:
+        suggestions = []
+        for m in matches:
+            for p in vendor_paths:
+                if os.path.basename(p).startswith(m):
+                    suggestions.append(p)
+                    break
         return None, suggestions
 
-    # Global fuzzy
-    suggestions = [p for p in TREE if slug in os.path.basename(p)]
-    return None, suggestions[:5]
+    # Coincidencias globales si no se encontró nada en vendor
+    all_names = [os.path.basename(p)[:-5] for p in TREE]
+    matches = difflib.get_close_matches(slug, all_names, n=4, cutoff=0.5)
+    suggestions = []
+    for m in matches:
+        for p in TREE:
+            if os.path.basename(p).startswith(m):
+                suggestions.append(p)
+                break
+    return None, suggestions
 
 def validate_device(d: dict) -> bool:
     return bool(d.get("device_id") and (d.get("hostname") or d.get("sysName")))
