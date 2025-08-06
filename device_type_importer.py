@@ -11,7 +11,7 @@ DRY = DRY_RUN
 
 def create_generic_device_type():
     """Crea un device-type genérico si no existe"""
-    man_id = get_or_create_manufacturer_id("Generic")
+    man_id = get_or_create_manufacturer_id("generic")
     
     # Verificar si ya existe
     check = nb_get(
