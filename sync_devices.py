@@ -34,6 +34,10 @@ def sync_devices():
         nm = d.get("hostname") or d.get("sysName")
         vendor, model = resolve_device_type(d)
         dtid = import_device_type_if_exists(vendor, model)
+        if dtid is None:
+            print(f"SKIP sin device_type {nm} ({vendor}/{model})")
+            continue
+
         cf = {"cf_librenms_id": lid}
         existe = nb_get("dcim/devices/", **cf).get("count", 0)
         if existe:
@@ -49,6 +53,5 @@ def sync_devices():
         }
         nb_post("dcim/devices/", pl)
         print(f"+ Creado {nm} ({lid}) con device_type {dtid}")
-
-if __name__=="__main__":
+if __name__ == "__main__":
     sync_devices()
