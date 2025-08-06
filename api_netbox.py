@@ -31,12 +31,19 @@ def nb_post(endpoint, payload):
     return resp.json()
 
 def get_or_create_manufacturer_id(slug: str):
+    slug = (slug or "").strip().lower()
     resp = nb_get("dcim/manufacturers/", slug=slug)
     if resp.get("count", 0):
         return resp["results"][0]["id"]
     data = {"name": slug.capitalize(), "slug": slug}
-    created = nb_post("dcim/manufacturers/", data)
-    return created.get("id")
+    try:
+        created = nb_post("dcim/manufacturers/", data)
+        return created.get("id")
+    except requests.HTTPError:
+        resp = nb_get("dcim/manufacturers/", slug=slug)
+        if resp.get("count", 0):
+            return resp["results"][0]["id"]
+        raise
 
 def get_device_type_id(vendor: str, fname: str):
     vendor = vendor.lower().strip()

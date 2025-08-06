@@ -72,13 +72,19 @@ def validate_device(d: dict) -> bool:
     return bool(d.get("device_id") and (d.get("hostname") or d.get("sysName")))
 
 def get_or_create_manufacturer_id(slug: str) -> int:
-    slug = ensure_slug("dcim/manufacturers/", slug)
+    slug = ensure_slug("dcim/manufacturers/", slug).lower()
     resp = nb_get("dcim/manufacturers/", slug=slug)
     if resp.get("count", 0) > 0:
         return resp["results"][0]["id"]
     data = {"name": slug.capitalize(), "slug": slug}
-    created = nb_post("dcim/manufacturers/", data)
-    return created.get("id")
+    try:
+        created = nb_post("dcim/manufacturers/", data)
+        return created.get("id")
+    except requests.HTTPError:
+        resp = nb_get("dcim/manufacturers/", slug=slug)
+        if resp.get("count", 0) > 0:
+            return resp["results"][0]["id"]
+        raise
 
 def get_or_create_generic_device_type():
     from api_netbox import get_or_create_manufacturer_id
