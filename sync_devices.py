@@ -3,17 +3,30 @@ from api_netbox import nb_get, nb_post
 from device_type_importer import import_device_type_if_exists
 from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def get_site_id(slug):
-    resp = nb_get("dcim/sites/", slug=slug)
+    try:
+        resp = nb_get("dcim/sites/", slug=slug)
+    except Exception as e:
+        logger.error("Error fetching site %s: %s", slug, e)
+        raise
     if resp.get("count"):
         return resp["results"][0]["id"]
     raise ValueError(f"No existe el sitio: {slug}")
 
 
 def get_role_id(slug):
-    resp = nb_get("dcim/device-roles/", slug=slug)
+    try:
+        resp = nb_get("dcim/device-roles/", slug=slug)
+    except Exception as e:
+        logger.error("Error fetching role %s: %s", slug, e)
+        raise
     if resp.get("count"):
         return resp["results"][0]["id"]
     raise ValueError(f"No existe el role: {slug}")
@@ -41,7 +54,11 @@ def sync_devices():
             continue
 
         cf = {"cf_librenms_id": lid}
-        resp_dev = nb_get("dcim/devices/", **cf)
+        try:
+            resp_dev = nb_get("dcim/devices/", **cf)
+        except Exception as e:
+            logger.error("Error checking device %s: %s", nm, e)
+            continue
         if resp_dev.get("count"):
             nb_dev_id = resp_dev["results"][0]["id"]
             print(f"= Ya existe {nm}")
@@ -54,7 +71,11 @@ def sync_devices():
                 "status": "active",
                 "custom_fields": {"librenms_id": str(lid)},
             }
-            created = nb_post("dcim/devices/", pl)
+            try:
+                created = nb_post("dcim/devices/", pl)
+            except Exception as e:
+                logger.error("Error creating device %s: %s", nm, e)
+                continue
             nb_dev_id = created.get("id")
             print(f"+ Creado {nm} ({lid}) con device_type {dtid}")
 
@@ -63,7 +84,12 @@ def sync_devices():
             name = p.get("ifName") or p.get("ifDescr")
             if not name:
                 continue
-            exists = nb_get("dcim/interfaces/", device_id=nb_dev_id, name=name).get("count", 0)
+            try:
+                resp_if = nb_get("dcim/interfaces/", device_id=nb_dev_id, name=name)
+            except Exception as e:
+                logger.error("Error checking interface %s on %s: %s", name, nm, e)
+                continue
+            exists = resp_if.get("count", 0)
             if exists:
                 print(f"= IF ya existe {name} en {nm}")
                 continue
@@ -76,7 +102,11 @@ def sync_devices():
                 "type": "other",
                 "custom_fields": {"librenms_port_id": str(p.get("port_id"))},
             }
-            nb_post("dcim/interfaces/", payload)
+            try:
+                nb_post("dcim/interfaces/", payload)
+            except Exception as e:
+                logger.error("Error creating interface %s on %s: %s", name, nm, e)
+                continue
             print(f"+ IF creada {name} en {nm}")
 
 
