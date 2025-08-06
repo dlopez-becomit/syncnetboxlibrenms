@@ -1,5 +1,5 @@
 from api_librenms import get_librenms_devices, get_librenms_device_ports
-from api_netbox import nb_get, nb_post
+from api_netbox import nb_get, nb_post, get_ip_address_id
 from device_type_importer import import_device_type_if_exists
 from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
@@ -28,19 +28,6 @@ def get_platform_id(slug: str | None):
     return None
 
 
-def get_or_create_ip(address: str | None):
-    if not address:
-        return None
-    addr = address if "/" in address else (
-        f"{address}/128" if ":" in address else f"{address}/32"
-    )
-    resp = nb_get("ipam/ip-addresses/", address=addr)
-    if resp.get("count"):
-        return resp["results"][0]["id"]
-    created = nb_post("ipam/ip-addresses/", {"address": addr, "status": "active"})
-    return created.get("id")
-
-
 def sync_devices():
     devices = get_librenms_devices()
     print(f"LibreNMS → {len(devices)} devices")
@@ -64,7 +51,7 @@ def sync_devices():
 
         platform_id = get_platform_id((d.get("os") or "").strip().lower())
         primary_ip = d.get("ip")
-        ip_id = get_or_create_ip(primary_ip)
+        ip_id = get_ip_address_id(primary_ip)
 
         cf = {"cf_librenms_id": lid}
         resp_dev = nb_get("dcim/devices/", **cf)
