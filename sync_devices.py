@@ -1,8 +1,29 @@
+from typing import Optional
+
 from api_librenms import get_librenms_devices
 from api_netbox import nb_get, nb_post
 from device_type_importer import import_device_type_if_exists
 from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
+
+
+def get_platform_id(slug: Optional[str]) -> Optional[int]:
+    """Return NetBox platform ID for given slug if it exists."""
+    if not slug:
+        return None
+    resp = nb_get("dcim/platforms/", slug=slug)
+    if resp.get("count"):
+        return resp["results"][0]["id"]
+    return None
+
+
+def get_ip_address_id(address: str) -> Optional[int]:
+    """Return NetBox IP address ID, creating the address if needed."""
+    resp = nb_get("ipam/ip-addresses/", address=address)
+    if resp.get("count"):
+        return resp["results"][0]["id"]
+    created = nb_post("ipam/ip-addresses/", {"address": address})
+    return created.get("id")
 
 def get_site_id(slug):
     resp = nb_get("dcim/sites/", slug=slug)
@@ -34,10 +55,7 @@ def sync_devices():
         vendor, model = resolve_device_type(d)
         dtid = import_device_type_if_exists(vendor, model)
         if dtid is None:
-
             print(f"SKIP {nm}: Sin device_type válido (vendor={vendor} model={model})")
-            continue
-            print(f"SKIP sin device_type {nm} ({vendor}/{model})")
             continue
 
         cf = {"cf_librenms_id": lid}
@@ -53,6 +71,34 @@ def sync_devices():
             "status": "active",
             "custom_fields": {"librenms_id": str(lid)},
         }
+
+        if d.get("serial"):
+            pl["serial"] = d["serial"]
+        if d.get("asset_tag"):
+            pl["asset_tag"] = d["asset_tag"]
+        if d.get("os"):
+            platform_slug = d["os"].strip().lower().replace(" ", "-")
+            plat_id = get_platform_id(platform_slug)
+            if plat_id:
+                pl["platform"] = plat_id
+        ip4 = d.get("ip") or d.get("ipv4") or d.get("ip4") or d.get("primary_ip")
+        if ip4:
+            ip_id = get_ip_address_id(ip4)
+            if ip_id:
+                pl["primary_ip4"] = ip_id
+        if d.get("notes"):
+            pl["comments"] = d["notes"]
+
+        extra_cf_map = {
+            "hardware": "librenms_hardware",
+            "location": "librenms_location",
+            "purpose": "librenms_purpose",
+        }
+        for key, cf_name in extra_cf_map.items():
+            val = d.get(key)
+            if val:
+                pl.setdefault("custom_fields", {})[cf_name] = str(val)
+
         nb_post("dcim/devices/", pl)
         print(f"+ Creado {nm} ({lid}) con device_type {dtid}")
 if __name__ == "__main__":
