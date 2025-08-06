@@ -4,7 +4,6 @@ from device_type_importer import import_device_type_if_exists
 from device_utils import resolve_device_type, validate_device
 from config import DEFAULT_SITE_SLUG, DEFAULT_ROLE_SLUG
 
-
 def get_site_id(slug):
     resp = nb_get("dcim/sites/", slug=slug)
     if resp.get("count"):
@@ -34,6 +33,9 @@ def sync_devices():
         nm = d.get("hostname") or d.get("sysName")
         vendor, model = resolve_device_type(d)
         dtid = import_device_type_if_exists(vendor, model)
+        if dtid is None:
+            print(f"SKIP {nm}: Sin device_type válido (vendor={vendor} model={model})")
+            continue
         cf = {"cf_librenms_id": lid}
         existe = nb_get("dcim/devices/", **cf).get("count", 0)
         if existe:
